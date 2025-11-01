@@ -19,8 +19,13 @@ const {
   PORT = 3001
 } = process.env;
 
-if (!GITHUB_WEBHOOK_SECRET) console.warn('⚠️  GITHUB_WEBHOOK_SECRET is not set');
-if (!GITHUB_TOKEN) console.warn('⚠️  GITHUB_TOKEN is not set');
+// Validate required environment variables at startup
+if (!GITHUB_WEBHOOK_SECRET || !GITHUB_TOKEN) {
+  console.error('❌ FATAL: Missing required environment variables');
+  console.error('   Required: GITHUB_WEBHOOK_SECRET, GITHUB_TOKEN');
+  console.error('   See .env.example for configuration');
+  process.exit(1);
+}
 
 const octokit = new Octokit({ auth: GITHUB_TOKEN });
 
@@ -47,10 +52,12 @@ app.post('/webhook', async (req, res) => {
   // GitHub ping support
   const ghEvent = req.headers['x-github-event'];
   if (ghEvent === 'ping') {
+    console.log('🔔 Ping received from GitHub');
     return res.status(200).json({ msg: 'pong' });
   }
 
   if (!verifySignature(req)) {
+    console.warn('⚠️  Webhook signature verification failed - potential security issue');
     return res.status(401).send('Unauthorized');
   }
 
@@ -61,7 +68,7 @@ app.post('/webhook', async (req, res) => {
     const repo = payload.repository;
     const owner = repo.owner.login;
     const name = repo.name;
-    console.log(`📦 New repository created: ${owner}/${name}`);
+    console.log(`📦 Repository created: ${owner}/${name}`);
 
     try {
       // Ensure initial commit exists (README) to create default branch on empty repos
@@ -83,6 +90,8 @@ app.post('/webhook', async (req, res) => {
     } catch (err) {
       console.error(`❌ Error setting up ${owner}/${name}:`, err?.message || err);
     }
+  } else if (ghEvent === 'repository') {
+    console.log(`ℹ️  Repository event (action: ${payload.action}) - not processing`);
   }
 
   res.status(200).send('OK');
@@ -92,16 +101,18 @@ async function ensureInitialCommit(owner, repo) {
   try {
     await octokit.repos.getContent({ owner, repo, path: 'README.md' });
     // Already exists
-  } catch {
-    const content = Buffer.from(`# ${repo}\n\nInitialized by webhook automation.\n`).toString('base64');
-    await octokit.repos.createOrUpdateFileContents({
-      owner,
-      repo,
-      path: 'README.md',
-      message: '🤖 chore: initial README for automation',
-      content
-    });
-    console.log(' ✓ Initial README.md created');
+  } catch (err) {
+    if (err.status === 404) {
+      const content = Buffer.from(`# ${repo}\\n\\nInitialized by webhook automation.\\n`).toString('base64');
+      await octokit.repos.createOrUpdateFileContents({
+        owner,
+        repo,
+        path: 'README.md',
+        message: '🤖 chore: initial README for automation',
+        content
+      });
+      console.log(' ✓ Initial README.md created');
+    }
   }
 }
 
@@ -286,7 +297,25 @@ jobs:
   console.log(' ✓ GitHub Actions workflow added');
 }
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 Webhook server listening on port ${PORT}`);
-  console.log(`📍 POST ${process.env.PUBLIC_URL || 'http://localhost:' + PORT}/webhook`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Webhook server running on port ${PORT}`);
+  console.log(`📍 Webhook endpoint: POST /webhook`);
+  console.log(`💚 Health check: GET /healthz`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('📛 SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('🛑 Server closed');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('📛 SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    console.log('🛑 Server closed');
+    process.exit(0);
+  });
 });
