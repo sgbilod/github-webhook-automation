@@ -1,0 +1,20 @@
+{
+  "name": "github-webhook-automation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automation server that configures new GitHub repositories on creation",
+  "main": "webhook-server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node webhook-server.js",
+    "dev": "nodemon webhook-server.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
