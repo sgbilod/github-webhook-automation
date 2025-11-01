@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-require('dotenv').config();
-const express = require('express');
-const crypto = require('crypto');
-const { Octokit } = require('@octokit/rest');
+import 'dotenv/config';
+import express from 'express';
+import crypto from 'node:crypto';
+import { Octokit } from '@octokit/rest';
 
 const app = express();
 
@@ -55,6 +55,7 @@ app.post('/webhook', async (req, res) => {
   }
 
   const payload = req.body;
+
   // Only handle repository creation events
   if (ghEvent === 'repository' && payload.action === 'created' && payload.repository) {
     const repo = payload.repository;
@@ -285,7 +286,7 @@ jobs:
   console.log(' ✓ GitHub Actions workflow added');
 }
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Webhook server listening on port ${PORT}`);
   console.log(`📍 POST ${process.env.PUBLIC_URL || 'http://localhost:' + PORT}/webhook`);
 });
