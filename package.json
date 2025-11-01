@@ -4,7 +4,7 @@
   "private": true,
   "description": "Automation server that configures new GitHub repositories on creation",
   "main": "webhook-server.js",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "start": "node webhook-server.js",
     "dev": "nodemon webhook-server.js"
@@ -16,5 +16,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.17"
   }
 }
